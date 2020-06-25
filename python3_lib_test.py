@@ -5,7 +5,7 @@ print(sys.version_info)
 
 ###
 ### Test conda install
-### FIXME find a way to test thos installs
+### FIXME find a way to test those installs
 #from hdfs.hfile import Hfile
 #import hdf5
 

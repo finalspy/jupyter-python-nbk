@@ -1,10 +1,8 @@
-ARG PYTHON2_IMG="saagie/python:2.7.202004.82"
-ARG PYTHON3_IMG="saagie/python:3.6.202004.82"
+ARG PYTHON3_IMG="saagie/python:3.6.202005.84"
 
-# FIXME should use a minimal image and add libs after + update to latest available
-ARG BASE_CONTAINER="jupyter/scipy-notebook:c7fb6660d096"
+# use jupyter/minmal from 20200618
+ARG BASE_CONTAINER="jupyter/minimal-notebook:04f7f60d34a6"
 
-FROM $PYTHON2_IMG AS PYTHON2
 FROM $PYTHON3_IMG AS PYTHON3
 FROM $BASE_CONTAINER
 
@@ -22,11 +20,18 @@ RUN npm cache clean --force \
 ########################## LIBS PART BEGIN ##########################
 USER root
 # TODO check if all necessary seems there are duplicate from jupyter/scipy image
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -qq && apt-get install -yqq --no-install-recommends \
+      # replaces libpng3 for bionic
+      libpng16-16 \
+      # replaces libdal6 for bionic
+      libgdal-dev \
+      # needed to compile psycopg2
+      libpq-dev \
+      curl \
       libxml2-dev libxslt1-dev antiword unrtf poppler-utils pstotext tesseract-ocr \
       flac ffmpeg lame libmad0 libsox-fmt-mp3 sox libjpeg-dev swig redis-server libpulse-dev \
-      libpng3 libfreetype6-dev libatlas-base-dev gfortran \
-      libgdal1-dev sasl2-bin libsasl2-2 libsasl2-dev \
+      libfreetype6-dev libatlas-base-dev gfortran \
+      sasl2-bin libsasl2-2 libsasl2-dev \
       libsasl2-modules unixodbc-dev python3-tk \
       qt5-default \
       libqt5webkit5-dev \
@@ -44,10 +49,6 @@ RUN jupyter kernelspec remove -f python3
 RUN conda update -n root conda \
     && conda clean -afy
 
-# Install python2.7 and 3.6 environments
-RUN conda create -n py27 python=2.7 \
-    && bash -c "source activate py27 && conda install notebook ipykernel -y && ipython kernel install --user --name py27 --display-name 'Python 2.7'" \
-    && conda clean -afy
 # seems there's sometimesa problem with pyzmq so need to reinstall it...
 RUN conda create -n py36 python=3.6 \
     && bash -c "source activate py36 && pip uninstall pyzmq -y && pip install pyzmq && conda install notebook ipykernel -y && ipython kernel install --user --name py36 --display-name 'Python 3.6'" \
@@ -56,20 +57,6 @@ RUN conda create -n py36 python=3.6 \
 
 # TODO check if all necessary seems there are duplicate from jupyter/scipy image
 SHELL ["/bin/bash", "-c"]
-# Add libs for python 2.7 env
-#     inherited from saagie/python:2.7 image
-#     installed via pip only
-#     installed via conda
-COPY requirements_conda2.txt requirements_conda2.txt
-COPY --from=PYTHON2 /requirements.txt ./requirements_python2.txt
-COPY requirements_pip2.txt requirements_pip2.txt
-RUN conda install -n py27 --quiet --yes --file requirements_conda2.txt \
-    && . activate py27 \
-    && python -m pip install --no-cache-dir -r requirements_python2.txt \
-    && python -m pip install --no-cache-dir -r requirements_pip2.txt \
-    && conda deactivate \
-    && conda clean -afy \
-    && rm -rf ~/.cache/pip
 # Add libs for python 3.6 env
 #     inherited from saagie/python:3.6 image
 #     installed via pip only
@@ -108,22 +95,19 @@ ENV CUDNN_VERSION 7.6.0.64
 
 LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates apt-transport-https gnupg-curl && \
+RUN apt-get update -qq && apt-get install -yqq --no-install-recommends \
+      ca-certificates gnupg2 && \
     rm -rf /var/lib/apt/lists/* && \
-    NVIDIA_GPGKEY_SUM=d1be581509378368edeec8c1eb2958702feedf3bc3d17011adbf24efacce4ab5 && \
-    NVIDIA_GPGKEY_FPR=ae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80 && \
-    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub && \
-    apt-key adv --export --no-emit-version -a $NVIDIA_GPGKEY_FPR | tail -n +5 > cudasign.pub && \
-    echo "$NVIDIA_GPGKEY_SUM  cudasign.pub" | sha256sum -c --strict - && rm cudasign.pub && \
-    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
-    echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
+    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub | apt-key add - && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
+    echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list && \
+    apt-get purge --autoremove -y curl && \
     # For libraries in the cuda-compat-* package: https://docs.nvidia.com/cuda/eula/index.html#attachment-a
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update -qq && apt-get install -yqq --no-install-recommends \
         cuda-cudart-$CUDA_PKG_VERSION \
         cuda-libraries-$CUDA_PKG_VERSION \
         cuda-nvtx-$CUDA_PKG_VERSION \
-        cuda-compat-10-0 && \
+        cuda-compat-10-0 \
         libnccl2=$NCCL_VERSION-1+cuda10.0 \
         libcudnn7=$CUDNN_VERSION-1+cuda10.0 \
     && apt-mark hold libnccl2 libcudnn7 \

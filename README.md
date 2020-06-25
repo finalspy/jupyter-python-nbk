@@ -44,5 +44,5 @@
 ### For python 3
 	!pip install libraryName
 
-### For python 2
-	!pip2 install libraryName
+/!\ Python2 support dropped
+

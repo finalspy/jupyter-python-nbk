@@ -1,6 +1,2 @@
-# Shoud be installed with conda
-#hdf5==1.10.1
-#python-hdfs==2.0.16
-
 pillow==4.3.0
 protobuf==3.6.1
