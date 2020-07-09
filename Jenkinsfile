@@ -11,7 +11,9 @@ pipeline {
         stage('Build Jupyter images') {
             steps {
                 script {
-                    sh "docker build -t saagie/jupyter-python-nbk:v2_$buildVersion ."
+                    sh "cd minimal && docker build -t saagie/jupyter-python-nbk:v2-minimal_$buildVersion ."
+                    sh "cd base && docker build -t saagie/jupyter-python-nbk:v2-base_$buildVersion -t saagie/jupyter-python-nbk:v2_$buildVersion ."
+                    sh "cd scipy && docker build -t saagie/jupyter-python-nbk:v2-scipy_$buildVersion ."
                 }
             }
         }
@@ -25,6 +27,9 @@ pipeline {
                 passwordVariable: 'PASSWORD')]) {
 
                         sh "docker login -u $USERNAME -p $PASSWORD"
+                        sh "docker push saagie/jupyter-python-nbk:v2-minimal_$buildVersion"
+                        sh "docker push saagie/jupyter-python-nbk:v2-base_$buildVersion"
+                        sh "docker push saagie/jupyter-python-nbk:v2-scipy_$buildVersion"
                         sh "docker push saagie/jupyter-python-nbk:v2_$buildVersion"
                     }
                 }
